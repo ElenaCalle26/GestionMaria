@@ -1,30 +1,31 @@
 FROM php:8.2-apache
 
+# Instalar extensiones necesarias
+RUN apt-get update && apt-get install -y \
+    git curl \
+    && docker-php-ext-install pdo pdo_mysql \
+    && a2enmod rewrite
+
 WORKDIR /var/www/html
 
-# Instalar extensiones PHP necesarias
-RUN docker-php-ext-install pdo pdo_mysql
-
-# Copiar archivos del proyecto
-COPY . /var/www/html
-
-# Habilitar mod_rewrite de Apache
-RUN a2enmod rewrite
-
-# Configurar Apache para apuntar a public/
-RUN sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
-RUN sed -i 's|<Directory /var/www/html>|<Directory /var/www/html/public>|g' /etc/apache2/sites-available/000-default.conf
+# Copiar composer.json primero
+COPY composer.json composer.lock* ./
 
 # Instalar Composer
-RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
+RUN curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/bin --filename=composer
 
-# Instalar dependencias de PHP
-RUN composer install --no-dev --no-interaction
+# Instalar dependencias
+RUN composer install --no-dev --no-interaction --optimize-autoloader
+
+# Copiar resto del proyecto
+COPY . .
+
+# Configurar Apache
+RUN sed -i 's|DocumentRoot /var/www/html|DocumentRoot /var/www/html/public|g' /etc/apache2/sites-available/000-default.conf
 
 # Permisos
-RUN chown -R www-data:www-data /var/www/html
-RUN chmod -R 755 /var/www/html/storage
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+RUN chmod -R 755 /var/www/html/storage /var/www/html/bootstrap/cache
 
 EXPOSE 80
-
 CMD ["apache2-foreground"]
