@@ -1,2 +1,2 @@
-web: sh -c "php-fpm -D && nginx -g 'daemon off;'"
+web: php artisan serve --host=0.0.0.0 --port=8000
 release: php artisan migrate --force
